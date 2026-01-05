@@ -5,17 +5,28 @@ import { Match, SearchResponse } from "../types";
 export const getDailyPredictions = async (date: string): Promise<{ data: SearchResponse, sources: any[] }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const prompt = `Analyze football matches scheduled for ${date}. 
-  Find 13 high-profile matches from major leagues (Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Brasileirão, Champions League, etc.).
-  For each match, provide:
-  1. Home Team
-  2. Away Team
-  3. League
-  4. Predicted Result (1 for Home Win, X for Draw, 2 for Away Win)
-  5. Confidence percentage (0-100)
-  6. A brief tactical reasoning based on current form, injuries, and stats found in real-time.
+  const prompt = `Analise os jogos de futebol agendados para ${date}. 
+  Encontre 13 jogos de alto nível das principais ligas globais (Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Brasileirão, Champions League, etc.).
   
-  Return the results as a structured JSON object.`;
+  Para cada jogo, você DEVE criar uma "CUSTOMBET" (estilo Bet Builder/Criar Aposta). 
+  Uma CUSTOMBET é uma combinação de DOIS mercados para o mesmo jogo para aumentar o valor mantendo a segurança.
+  
+  Exemplos de combinações em português:
+  - "Vitória da Casa" E "Mais de 1.5 Gols no Jogo"
+  - "Handicap (2-0) para Casa" E "Mais de 0.5 Gols da Casa"
+  - "Chance Dupla (1X)" E "Ambos Marcam - Não"
+  - "Vitória do Visitante" E "Mais Escanteios para o Visitante"
+  
+  Para cada um dos 13 jogos, forneça em PORTUGUÊS:
+  1. homeTeam: Nome do Time da Casa
+  2. awayTeam: Nome do Time Visitante
+  3. league: Nome da Liga
+  4. market1: A primeira parte da combinação.
+  5. market2: A segunda parte da combinação.
+  6. confidence: Porcentagem de confiança (0-100) para o COMBO.
+  7. reasoning: Uma breve justificativa tática em português explicando por que esta combinação específica é inteligente.
+  
+  Retorne os resultados como um objeto JSON estruturado.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -31,16 +42,15 @@ export const getDailyPredictions = async (date: string): Promise<{ data: SearchR
             items: {
               type: Type.OBJECT,
               properties: {
-                id: { type: Type.STRING },
                 homeTeam: { type: Type.STRING },
                 awayTeam: { type: Type.STRING },
                 league: { type: Type.STRING },
-                startTime: { type: Type.STRING },
-                prediction: { type: Type.STRING, enum: ['1', 'X', '2'] },
+                market1: { type: Type.STRING, description: "Primeiro mercado da aposta personalizada" },
+                market2: { type: Type.STRING, description: "Segundo mercado da aposta personalizada" },
                 confidence: { type: Type.NUMBER },
                 reasoning: { type: Type.STRING },
               },
-              required: ['homeTeam', 'awayTeam', 'league', 'prediction', 'confidence', 'reasoning']
+              required: ['homeTeam', 'awayTeam', 'league', 'market1', 'market2', 'confidence', 'reasoning']
             }
           },
           summary: { type: Type.STRING }
@@ -56,6 +66,6 @@ export const getDailyPredictions = async (date: string): Promise<{ data: SearchR
     const data = JSON.parse(text) as SearchResponse;
     return { data, sources };
   } catch (e) {
-    throw new Error("Failed to parse AI response. Try again.");
+    throw new Error("Falha ao processar a resposta da IA. Tente novamente.");
   }
 };

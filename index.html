@@ -1,18 +1,27 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CustomBet AI - Football Predictions</title>
+    <title>CustomBet AI - Palpites de Futebol</title>
+    <meta name="description" content="Mecanismo de previsão de futebol por IA com combinações CustomBet e análise em tempo real.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a;
+        }
         .glass-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #root {
+            min-height: 100vh;
         }
     </style>
 <script type="importmap">
@@ -28,5 +37,7 @@
 </head>
 <body class="bg-[#0f172a] text-gray-100 min-h-screen">
     <div id="root"></div>
+    <!-- Ponto de entrada vital para o funcionamento no Netlify -->
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>

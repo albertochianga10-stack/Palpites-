@@ -1,6 +1,6 @@
 {
-  "name": "CustomBet AI Football Predictor",
-  "description": "An advanced AI-powered football prediction app that analyzes real-time data to generate 13 daily match tips (CUSTOMBET) using Google Search grounding.",
+  "name": "CustomBet AI - Palpites de Futebol",
+  "description": "Um aplicativo avançado de palpites de futebol com IA que analisa dados em tempo real para gerar 13 dicas diárias (CUSTOMBET) usando Google Search.",
   "requestFramePermissions": [
     "geolocation"
   ]

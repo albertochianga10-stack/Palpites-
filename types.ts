@@ -4,8 +4,8 @@ export interface Match {
   homeTeam: string;
   awayTeam: string;
   league: string;
-  startTime: string;
-  prediction: '1' | 'X' | '2';
+  market1: string; // e.g., "Home Win (Handicap 0:2)"
+  market2: string; // e.g., "Over 0.5 Home Goals"
   confidence: number;
   reasoning: string;
 }

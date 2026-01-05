@@ -1,0 +1,7 @@
+{
+  "name": "CustomBet AI Football Predictor",
+  "description": "An advanced AI-powered football prediction app that analyzes real-time data to generate 13 daily match tips (CUSTOMBET) using Google Search grounding.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

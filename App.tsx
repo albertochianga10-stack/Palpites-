@@ -1,12 +1,11 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PredictionState, Match } from './types';
 import { getDailyPredictions } from './services/gemini';
 import Header from './components/Header';
 import MatchCard from './components/MatchCard';
 
 const App: React.FC = () => {
-  // Garantir que a data inicial seja a local do usuário, não UTC pura
   const getLocalDate = () => {
     const now = new Date();
     const offset = now.getTimezoneOffset();
@@ -22,8 +21,15 @@ const App: React.FC = () => {
     groundingSources: []
   });
 
+  // Ref para evitar chamadas duplicadas acidentais
+  const isFetching = useRef(false);
+
   const fetchPredictions = useCallback(async (selectedDate: string) => {
+    if (isFetching.current) return;
+    
+    isFetching.current = true;
     setState(prev => ({ ...prev, loading: true, error: null }));
+
     try {
       const { data, sources } = await getDailyPredictions(selectedDate);
       
@@ -38,16 +44,21 @@ const App: React.FC = () => {
         ...prev,
         matches: data.matches || [],
         loading: false,
-        groundingSources: groundingLinks
+        groundingSources: groundingLinks,
+        error: data.matches.length === 0 ? "Nenhum jogo encontrado para esta data. Tente outro dia." : null
       }));
     } catch (err: any) {
-      console.error(err);
-      let errorMsg = "Não foi possível recuperar os dados. Verifique se a API KEY está configurada no Netlify.";
+      console.error("Erro ao carregar palpites:", err);
+      let errorMsg = "Ocorreu um erro inesperado ao processar os dados de futebol.";
       
-      if (err.message?.includes("API_KEY")) {
-        errorMsg = "Erro de Configuração: A chave de API não foi encontrada no ambiente do servidor.";
-      } else if (err.message?.includes("safety")) {
-        errorMsg = "A consulta foi bloqueada pelos filtros de segurança da IA. Tente outra data.";
+      if (err.message === "API_KEY_MISSING") {
+        errorMsg = "Configuração Incompleta: A API_KEY não foi encontrada. Configure-a no painel do Netlify.";
+      } else if (err.message === "API_KEY_INVALID") {
+        errorMsg = "A chave de API configurada no Netlify parece ser inválida.";
+      } else if (err.message === "SAFETY_BLOCK") {
+        errorMsg = "A análise foi interrompida pelos filtros de segurança. Tente uma data diferente.";
+      } else if (err.message === "EMPTY_RESPONSE") {
+        errorMsg = "A IA não conseguiu gerar os dados. Por favor, tente atualizar novamente.";
       }
 
       setState(prev => ({
@@ -55,6 +66,8 @@ const App: React.FC = () => {
         loading: false,
         error: errorMsg
       }));
+    } finally {
+      isFetching.current = false;
     }
   }, []);
 
@@ -67,10 +80,14 @@ const App: React.FC = () => {
     fetchPredictions(newDate);
   };
 
+  const handleRefresh = () => {
+    fetchPredictions(state.date);
+  };
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-[#0f172a]">
       <Header 
-        onRefresh={() => fetchPredictions(state.date)} 
+        onRefresh={handleRefresh} 
         loading={state.loading} 
         date={state.date}
         onDateChange={handleDateChange}
@@ -78,46 +95,48 @@ const App: React.FC = () => {
 
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
             <h2 className="text-xl font-bold text-white flex items-center space-x-2">
               <span className="w-2 h-6 bg-emerald-500 rounded-full inline-block"></span>
               <span>13 Seleções Diárias</span>
             </h2>
-            <p className="text-sm text-gray-400">
-              Analise para: <span className="text-emerald-400 font-mono">{state.date}</span>
-            </p>
+            <div className="bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+               <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider">
+                Status: <span className="animate-pulse">{state.loading ? 'Analisando...' : 'Pronto'}</span>
+              </p>
+            </div>
           </div>
           <p className="text-gray-400 text-sm max-w-2xl">
-            Dados processados em tempo real via Google Search para garantir as informações mais recentes sobre escalações e odds.
+            Nossa IA utiliza Google Search para analisar tendências globais, notícias de última hora e dados estatísticos para cada palpite.
           </p>
         </div>
 
         {state.loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
-            {[...Array(12)].map((_, i) => (
-              <div key={i} className="glass-card h-80 rounded-2xl opacity-50"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(13)].map((_, i) => (
+              <div key={i} className="glass-card h-80 rounded-2xl animate-pulse bg-white/5 border border-white/10"></div>
             ))}
           </div>
         ) : state.error ? (
-          <div className="glass-card border-red-500/30 p-10 text-center rounded-2xl max-w-lg mx-auto mt-10">
+          <div className="glass-card border-red-500/30 p-10 text-center rounded-2xl max-w-lg mx-auto mt-10 shadow-2xl shadow-red-500/5">
             <div className="bg-red-500/10 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Ops! Algo deu errado</h3>
-            <p className="text-gray-400 text-sm mb-6">{state.error}</p>
-            <div className="flex flex-col space-y-3">
-              <button 
-                onClick={() => fetchPredictions(state.date)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold text-sm transition-colors"
-              >
-                Tentar Novamente
-              </button>
-              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
-                Dica: Verifique se as Environment Variables no Netlify incluem a API_KEY
-              </p>
-            </div>
+            <h3 className="text-xl font-bold text-white mb-2">A Análise Falhou</h3>
+            <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+              {state.error}
+            </p>
+            <button 
+              onClick={handleRefresh}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all transform active:scale-95 shadow-lg shadow-emerald-500/20"
+            >
+              Tentar Novamente Agora
+            </button>
+            <p className="mt-4 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+              Dica: Verifique sua conexão ou tente uma data diferente.
+            </p>
           </div>
         ) : (
           <>
@@ -133,7 +152,7 @@ const App: React.FC = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  Fontes de Grounding (Google Search)
+                  Fontes de Dados (Google Search)
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {state.groundingSources.map((source, idx) => (
@@ -154,13 +173,15 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="mt-auto border-t border-white/10 py-8 bg-slate-900/80">
+      <footer className="mt-auto border-t border-white/10 py-10 bg-slate-900/80">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-500 text-xs mb-2">
-            Aviso: Previsões baseadas em probabilidade. Nunca aposte o que não pode perder.
-          </p>
-          <p className="text-emerald-500/50 text-[10px] font-bold tracking-widest uppercase">
-            &copy; {new Date().getFullYear()} CUSTOMBET AI - POWERED BY GEMINI 3 PRO
+          <div className="flex items-center justify-center space-x-2 mb-4">
+             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.3em]">IA Predictive Engine v2.5</p>
+             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+          </div>
+          <p className="text-gray-500 text-[10px] max-w-md mx-auto leading-relaxed">
+            As previsões geradas são baseadas em algoritmos de probabilidade e dados históricos. O futebol é imprevisível. Use estas informações como ferramenta de apoio, nunca como garantia.
           </p>
         </div>
       </footer>
